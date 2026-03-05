@@ -1,6 +1,7 @@
 import { Switch, Route, Redirect } from "wouter";
 import Login from "./pages/login";
 import Register from "./pages/register";
+import OrderStatus from "./pages/order-status";
 
 function Dashboard() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/order/:token" component={OrderStatus} />
       <Route component={() => <Redirect to="/login" />} />
     </Switch>
   );
