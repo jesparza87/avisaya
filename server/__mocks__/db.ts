@@ -1,40 +1,58 @@
 // Manual mock for server/db — used by Jest via moduleNameMapper.
-// Simulates Drizzle ORM's fluent query-builder chain more accurately.
-// Each "terminal" method (limit, returning) returns a jest.fn() that resolves
-// to an empty array by default; tests can override per-call with mockResolvedValueOnce.
+// Simulates Drizzle ORM's fluent query-builder chain accurately.
+// Each "terminal" method resolves to a value; all others return `this` for chaining.
+// Tests can override per-call with mockResolvedValueOnce / mockReturnValueOnce.
 
 type MockFn = jest.Mock;
 
 interface ChainableMock {
+  // Query builder entry points
   select: MockFn;
+  insert: MockFn;
+  update: MockFn;
+  delete: MockFn;
+  // Chaining methods
   from: MockFn;
   where: MockFn;
-  limit: MockFn;
-  insert: MockFn;
-  values: MockFn;
-  returning: MockFn;
-  update: MockFn;
   set: MockFn;
-  delete: MockFn;
-  // Allow index access for the Proxy in db.ts
+  values: MockFn;
+  orderBy: MockFn;
+  groupBy: MockFn;
+  leftJoin: MockFn;
+  innerJoin: MockFn;
+  offset: MockFn;
+  // Terminal methods (resolve to a value)
+  limit: MockFn;
+  returning: MockFn;
+  execute: MockFn;
+  // Allow index access
   [key: string]: MockFn;
 }
 
 // Terminal methods resolve to a value; all others return `this` for chaining.
-const TERMINAL_METHODS = new Set(["limit", "returning"]);
+const TERMINAL_METHODS = new Set(["limit", "returning", "execute"]);
 
 function makeChain(): ChainableMock {
   const chain: ChainableMock = {
+    // Entry points
     select: jest.fn(),
+    insert: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    // Chaining methods
     from: jest.fn(),
     where: jest.fn(),
-    limit: jest.fn().mockResolvedValue([]),
-    insert: jest.fn(),
-    values: jest.fn(),
-    returning: jest.fn().mockResolvedValue([]),
-    update: jest.fn(),
     set: jest.fn(),
-    delete: jest.fn(),
+    values: jest.fn(),
+    orderBy: jest.fn(),
+    groupBy: jest.fn(),
+    leftJoin: jest.fn(),
+    innerJoin: jest.fn(),
+    offset: jest.fn(),
+    // Terminal methods
+    limit: jest.fn().mockResolvedValue([]),
+    returning: jest.fn().mockResolvedValue([]),
+    execute: jest.fn().mockResolvedValue([]),
   };
 
   // Wire up non-terminal methods to return the chain itself so that
@@ -80,4 +98,11 @@ export function mockLimitResult(rows: unknown[]): void {
  */
 export function mockReturningResult(rows: unknown[]): void {
   (mockDb.returning as MockFn).mockResolvedValueOnce(rows);
+}
+
+/**
+ * Helper: make the next call to `db.execute()` resolve to the given rows.
+ */
+export function mockExecuteResult(rows: unknown[]): void {
+  (mockDb.execute as MockFn).mockResolvedValueOnce(rows);
 }

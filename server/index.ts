@@ -58,7 +58,6 @@ io.on("connection", (socket) => {
   socket.on("join:venue", (venueId: string) => {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
-      // Consistent with the auth middleware: reject if JWT_SECRET is not configured.
       socket.emit("error", { message: "Server misconfiguration: JWT_SECRET not set" });
       return;
     }
