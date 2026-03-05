@@ -1,7 +1,7 @@
 {
   "name": "avisaya",
   "version": "1.0.0",
-  "description": "AvisaYa \u2014 Pager digital para hosteler\u00eda. QR + push notification, sin app.",
+  "description": "AvisaYa — Pager digital para hostelería. QR + push notification, sin app.",
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
@@ -11,7 +11,19 @@
     "build:client": "vite build",
     "build:server": "tsc --project tsconfig.server.json",
     "start": "node dist/server/index.js",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "test": "NODE_ENV=test jest --runInBand"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ],
+    "moduleNameMapper": {
+      "^../db$": "<rootDir>/server/__mocks__/db.ts",
+      "^../schema$": "<rootDir>/server/__mocks__/schema.ts"
+    }
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -25,6 +37,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "@tanstack/react-query": "^5.40.0",
+    "web-push": "^3.6.7",
     "wouter": "^3.3.0"
   },
   "devDependencies": {
@@ -32,16 +45,22 @@
     "@types/cookie-parser": "^1.4.7",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.14.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/supertest": "^6.0.2",
+    "@types/web-push": "^3.6.3",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
     "drizzle-kit": "^0.21.4",
+    "jest": "^29.7.0",
     "postcss": "^8.4.38",
+    "supertest": "^7.0.0",
     "tailwindcss": "^3.4.4",
+    "ts-jest": "^29.1.4",
     "tsx": "^4.15.6",
     "typescript": "^5.4.5",
     "vite": "^5.3.1"

@@ -14,12 +14,15 @@ import jwt from "jsonwebtoken";
 
 dotenv.config();
 
-// Validate VAPID env vars at startup — fail fast rather than silently misconfigure
-try {
-  initVapid();
-} catch (err) {
-  console.error("FATAL: VAPID configuration error —", (err as Error).message);
-  process.exit(1);
+// Validate VAPID env vars at startup.
+// Skipped in test environment so Jest can import the app without VAPID credentials.
+if (process.env.NODE_ENV !== "test") {
+  try {
+    initVapid();
+  } catch (err) {
+    console.error("FATAL: VAPID configuration error —", (err as Error).message);
+    process.exit(1);
+  }
 }
 
 const app = express();

@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { db } from "../db";
 import { users, venues } from "../schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { verifyJWT, AuthRequest } from "../middleware/auth";
 
 const router = Router();
@@ -15,6 +15,32 @@ function slugify(name: string): string {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+}
+
+/**
+ * Generates a unique slug for a venue name.
+ *
+ * Fetches only slugs that are exactly `base` or match `base-<digits>` using a
+ * PostgreSQL regex, avoiding LIKE false-positives (e.g. base "bar" matching
+ * "bar-restaurant").
+ */
+export async function uniqueSlug(base: string): Promise<string> {
+  const rows = await db
+    .select({ slug: venues.slug })
+    .from(venues)
+    .where(sql`${venues.slug} = ${base} OR ${venues.slug} ~ ${`^${base}-[0-9]+$`}`);
+
+  const existing = new Set(rows.map((r) => r.slug));
+
+  if (!existing.has(base)) {
+    return base;
+  }
+
+  let counter = 2;
+  while (existing.has(`${base}-${counter}`)) {
+    counter++;
+  }
+  return `${base}-${counter}`;
 }
 
 // POST /api/auth/register
@@ -36,7 +62,8 @@ router.post("/register", async (req: Request, res: Response) => {
       return res.status(409).json({ error: "Email already registered" });
     }
 
-    const slug = slugify(venueName);
+    const base = slugify(venueName);
+    const slug = await uniqueSlug(base);
 
     // Create venue first
     const [venue] = await db
@@ -119,7 +146,7 @@ router.post("/login", async (req: Request, res: Response) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return res.status(200).json({
