@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { db } from "../db";
 import { users, venues } from "../schema";
-import { eq } from "drizzle-orm";
+import { eq, like, desc } from "drizzle-orm";
 import { verifyJWT, AuthRequest } from "../middleware/auth";
 
 const router = Router();
@@ -15,6 +15,33 @@ function slugify(name: string): string {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+}
+
+/**
+ * Generate a unique slug by appending a numeric suffix if the base slug is taken.
+ */
+async function uniqueSlug(base: string): Promise<string> {
+  // Check for existing slugs that start with the base slug
+  const existing = await db
+    .select({ slug: venues.slug })
+    .from(venues)
+    .where(like(venues.slug, `${base}%`))
+    .orderBy(desc(venues.slug));
+
+  if (existing.length === 0) {
+    return base;
+  }
+
+  const taken = new Set(existing.map((r) => r.slug));
+  if (!taken.has(base)) {
+    return base;
+  }
+
+  let counter = 2;
+  while (taken.has(`${base}-${counter}`)) {
+    counter++;
+  }
+  return `${base}-${counter}`;
 }
 
 // POST /api/auth/register
@@ -36,7 +63,8 @@ router.post("/register", async (req: Request, res: Response) => {
       return res.status(409).json({ error: "Email already registered" });
     }
 
-    const slug = slugify(venueName);
+    const baseSlug = slugify(venueName);
+    const slug = await uniqueSlug(baseSlug);
 
     // Create venue first
     const [venue] = await db

@@ -44,12 +44,19 @@ io.on("connection", (socket) => {
 
   // join:venue: bar dashboard only — requires valid JWT
   socket.on("join:venue", (venueId: string) => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      socket.emit("error", { message: "Server misconfiguration" });
+      return;
+    }
+
     const token =
       (socket.handshake.auth as Record<string, string>)?.token ||
       socket.handshake.headers.cookie?.match(/token=([^;]+)/)?.[1];
+
     try {
       if (!token) throw new Error("No token");
-      jwt.verify(token, process.env.JWT_SECRET || "secret");
+      jwt.verify(token, secret);
       socket.join(venueId);
     } catch {
       socket.emit("error", { message: "Authentication required to join venue room" });

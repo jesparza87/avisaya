@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import { db } from "../db";
-import { push_subscriptions } from "../db/schema";
+import { push_subscriptions } from "../schema";
 import { eq, and } from "drizzle-orm";
 import { verifyJWT, AuthRequest } from "../middleware/auth";
 
@@ -38,8 +38,7 @@ router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => 
         .update(push_subscriptions)
         .set({
           p256dh: subscription.keys.p256dh,
-          auth: subscription.keys.auth,
-          updated_at: new Date(),
+          auth_key: subscription.keys.auth,
         })
         .where(
           and(
@@ -52,11 +51,9 @@ router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => 
       await db.insert(push_subscriptions).values({
         endpoint: subscription.endpoint,
         p256dh: subscription.keys.p256dh,
-        auth: subscription.keys.auth,
+        auth_key: subscription.keys.auth,
         order_id: orderId,
-        user_id: req.user!.id,
         created_at: new Date(),
-        updated_at: new Date(),
       });
     }
 
@@ -82,8 +79,7 @@ router.delete("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) =
       .where(
         and(
           eq(push_subscriptions.endpoint, endpoint),
-          eq(push_subscriptions.order_id, orderId),
-          eq(push_subscriptions.user_id, req.user!.id)
+          eq(push_subscriptions.order_id, orderId)
         )
       );
 
