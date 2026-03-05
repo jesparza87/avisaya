@@ -31,8 +31,10 @@ export const orders = pgTable("orders", {
 export const push_subscriptions = pgTable("push_subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),
   order_id: uuid("order_id").references(() => orders.id).notNull(),
+  user_id: uuid("user_id").references(() => users.id).notNull(),
   endpoint: text("endpoint").notNull(),
   p256dh: text("p256dh").notNull(),
-  auth_key: text("auth_key").notNull(),
+  auth: text("auth").notNull(),
   created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
 });

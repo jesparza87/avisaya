@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import { db } from "../db";
-import { push_subscriptions } from "../db/schema";
+import { push_subscriptions } from "../schema";
 import { eq, and } from "drizzle-orm";
 import { verifyJWT, AuthRequest } from "../middleware/auth";
 

@@ -14,12 +14,19 @@ import jwt from "jsonwebtoken";
 
 dotenv.config();
 
-// Validate VAPID env vars at startup — fail fast rather than silently misconfigure
+// Attempt to initialise VAPID — warn in development, fatal in production
 try {
   initVapid();
 } catch (err) {
-  console.error("FATAL: VAPID configuration error —", (err as Error).message);
-  process.exit(1);
+  if (process.env.NODE_ENV === "production") {
+    console.error("FATAL: VAPID configuration error —", (err as Error).message);
+    process.exit(1);
+  } else {
+    console.warn(
+      "WARNING: VAPID not configured — push notifications will not work.",
+      (err as Error).message
+    );
+  }
 }
 
 const app = express();
@@ -44,12 +51,19 @@ io.on("connection", (socket) => {
 
   // join:venue: bar dashboard only — requires valid JWT
   socket.on("join:venue", (venueId: string) => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      socket.emit("error", { message: "Server misconfiguration: JWT_SECRET not set" });
+      return;
+    }
+
     const token =
       (socket.handshake.auth as Record<string, string>)?.token ||
       socket.handshake.headers.cookie?.match(/token=([^;]+)/)?.[1];
+
     try {
       if (!token) throw new Error("No token");
-      jwt.verify(token, process.env.JWT_SECRET || "secret");
+      jwt.verify(token, secret);
       socket.join(venueId);
     } catch {
       socket.emit("error", { message: "Authentication required to join venue room" });

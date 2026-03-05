@@ -17,6 +17,31 @@ function slugify(name: string): string {
     .replace(/-+/g, "-");
 }
 
+/**
+ * Generate a unique slug by appending a numeric suffix when the base slug
+ * already exists in the database.
+ */
+async function uniqueSlug(baseName: string): Promise<string> {
+  const base = slugify(baseName);
+  let candidate = base;
+  let attempt = 0;
+
+  while (true) {
+    const existing = await db
+      .select({ id: venues.id })
+      .from(venues)
+      .where(eq(venues.slug, candidate))
+      .limit(1);
+
+    if (existing.length === 0) {
+      return candidate;
+    }
+
+    attempt += 1;
+    candidate = `${base}-${attempt}`;
+  }
+}
+
 // POST /api/auth/register
 router.post("/register", async (req: Request, res: Response) => {
   try {
@@ -36,7 +61,7 @@ router.post("/register", async (req: Request, res: Response) => {
       return res.status(409).json({ error: "Email already registered" });
     }
 
-    const slug = slugify(venueName);
+    const slug = await uniqueSlug(venueName);
 
     // Create venue first
     const [venue] = await db
