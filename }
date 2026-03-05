@@ -1,3 +1,2 @@
-
-### Login
-
+git rm "}"
+git commit -m "chore: remove stray } file"
