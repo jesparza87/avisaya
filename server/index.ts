@@ -1,12 +1,15 @@
+import http from "http";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 import dotenv from "dotenv";
+import { Server } from "socket.io";
 import authRoutes from "./routes/auth";
 import ordersRoutes from "./routes/orders";
 import pushRoutes from "./routes/push";
 import { initVapid } from "./lib/webpush";
+import { setIo } from "./lib/socket";
 
 dotenv.config();
 
@@ -19,12 +22,39 @@ try {
 }
 
 const app = express();
+const httpServer = http.createServer(app);
+
 const PORT = process.env.PORT || 5001;
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+
+// Socket.io
+const io = new Server(httpServer, {
+  cors: {
+    origin: CLIENT_URL,
+    credentials: true,
+  },
+});
+
+// Store io instance for use in route handlers
+setIo(io);
+
+io.on("connection", (socket) => {
+  console.log("Socket connected:", socket.id);
+
+  socket.on("join:venue", (venueOrToken: string) => {
+    socket.join(venueOrToken);
+    console.log(`Socket ${socket.id} joined room: ${venueOrToken}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Socket disconnected:", socket.id);
+  });
+});
 
 // Middleware
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: CLIENT_URL,
     credentials: true,
   })
 );
@@ -45,7 +75,7 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🚀 AvisaYa server running on port ${PORT}`);
 });
 
