@@ -6,8 +6,17 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
 import ordersRoutes from "./routes/orders";
 import pushRoutes from "./routes/push";
+import { initVapid } from "./lib/webpush";
 
 dotenv.config();
+
+// Validate VAPID env vars at startup — fail fast rather than silently misconfigure
+try {
+  initVapid();
+} catch (err) {
+  console.error("FATAL: VAPID configuration error —", (err as Error).message);
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5001;
