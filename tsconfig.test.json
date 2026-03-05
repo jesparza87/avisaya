@@ -1,9 +1,0 @@
-{
-  "extends": "./tsconfig.server.json",
-  "compilerOptions": {
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "strict": true
-  },
-  "include": ["server", "shared"]
-}
