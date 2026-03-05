@@ -1,0 +1,2 @@
+npm install qrcode
+npm install --save-dev @types/qrcode

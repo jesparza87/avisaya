@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
+import ordersRoutes from "./routes/orders";
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use(cookieParser());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/orders", ordersRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {
