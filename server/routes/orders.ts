@@ -1,11 +1,19 @@
 import { Router } from "express";
 import { db } from "../db";
-import { orders } from "../schema";
-import { eq, and, desc, ne } from "drizzle-orm";
+import { orders, push_subscriptions } from "../schema";
+import { eq, and, desc } from "drizzle-orm";
 import { verifyJWT, AuthRequest } from "../middleware/auth";
 import { Response } from "express";
+import webPush from "web-push";
 
 const router = Router();
+
+// Configure VAPID once when the module loads
+webPush.setVapidDetails(
+  process.env.VAPID_EMAIL!,
+  process.env.VAPID_PUBLIC_KEY!,
+  process.env.VAPID_PRIVATE_KEY!
+);
 
 // POST /api/orders — create order (authenticated)
 router.post("/", verifyJWT, async (req: AuthRequest, res: Response) => {
@@ -108,6 +116,64 @@ router.patch("/:id/ready", verifyJWT, async (req: AuthRequest, res: Response) =>
 
     if (!updated) {
       return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Fetch all push subscriptions for this order
+    const subscriptions = await db
+      .select()
+      .from(push_subscriptions)
+      .where(eq(push_subscriptions.order_id, id));
+
+    if (subscriptions.length > 0) {
+      const payload = JSON.stringify({
+        title: "¡Tu pedido está listo!",
+        body: updated.label,
+        url: "/order/" + updated.token,
+      });
+
+      // Send all notifications in parallel
+      const results = await Promise.allSettled(
+        subscriptions.map((sub) =>
+          webPush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.p256dh,
+                auth: sub.auth_key,
+              },
+            },
+            payload
+          )
+        )
+      );
+
+      // Remove expired/invalid subscriptions (HTTP 410 Gone)
+      const removalPromises: Promise<unknown>[] = [];
+      results.forEach((result, index) => {
+        if (result.status === "rejected") {
+          const err = result.reason as { statusCode?: number };
+          if (err?.statusCode === 410) {
+            const sub = subscriptions[index];
+            console.log(`Removing expired push subscription: ${sub.endpoint}`);
+            removalPromises.push(
+              db
+                .delete(push_subscriptions)
+                .where(
+                  and(
+                    eq(push_subscriptions.endpoint, sub.endpoint),
+                    eq(push_subscriptions.order_id, id)
+                  )
+                )
+            );
+          } else {
+            console.error("Error sending push notification:", result.reason);
+          }
+        }
+      });
+
+      if (removalPromises.length > 0) {
+        await Promise.allSettled(removalPromises);
+      }
     }
 
     return res.json(updated);
