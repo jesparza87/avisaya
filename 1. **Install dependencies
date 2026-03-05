@@ -1,0 +1,2 @@
+npm install web-push socket.io socket.io-client
+npm install -D @types/web-push vitest
