@@ -19,7 +19,7 @@ export interface Order {
   venue_id: string;
   token: string;
   label: string;
-  status: "waiting" | "ready" | "delivered";
+  status: "waiting" | "ready" | "collected";
   created_at: string;
   notified_at: string | null;
 }
@@ -45,5 +45,15 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-  user: User;
+  user: {
+    id: string;
+    email: string;
+    role: string;
+    venueId: string | null;
+    venueName: string;
+  };
+}
+
+export interface ApiError {
+  message: string;
 }
