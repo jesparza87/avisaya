@@ -1,13 +1,16 @@
 import { Router, Response } from "express";
 import { db } from "../db";
-import { push_subscriptions } from "../db/schema";
+import { push_subscriptions, orders } from "../schema";
 import { eq, and } from "drizzle-orm";
 import { verifyJWT, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
 // POST /api/push/subscribe
-// Requires authentication — only the authenticated user can subscribe their own orderId
+// Requires authentication — only the authenticated user can subscribe their own orderId.
+// The orderId is verified to belong to the authenticated user so that a malicious
+// caller who knows or guesses an orderId cannot register to receive another
+// customer's push notifications.
 router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => {
   const { subscription, orderId } = req.body;
 
@@ -20,6 +23,22 @@ router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => 
   }
 
   try {
+    // Verify the order exists and belongs to the authenticated user
+    const orderRows = await db
+      .select()
+      .from(orders)
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.user_id, req.user!.id)
+        )
+      )
+      .limit(1);
+
+    if ((orderRows as unknown[]).length === 0) {
+      return res.status(403).json({ error: "Order not found or does not belong to you" });
+    }
+
     // Upsert: if the same endpoint+orderId already exists, update keys; otherwise insert
     const existing = await db
       .select()
@@ -32,7 +51,7 @@ router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => 
       )
       .limit(1);
 
-    if (existing.length > 0) {
+    if ((existing as unknown[]).length > 0) {
       // Update existing subscription keys to avoid duplicates
       await db
         .update(push_subscriptions)
@@ -68,7 +87,9 @@ router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => 
 });
 
 // DELETE /api/push/subscribe
-// Requires authentication
+// Requires authentication.
+// Only deletes the subscription when the endpoint+orderId combination belongs to
+// the authenticated user, preventing one user from unsubscribing another's device.
 router.delete("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => {
   const { endpoint, orderId } = req.body;
 
@@ -77,6 +98,22 @@ router.delete("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) =
   }
 
   try {
+    // Verify the order belongs to the authenticated user before deleting
+    const orderRows = await db
+      .select()
+      .from(orders)
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.user_id, req.user!.id)
+        )
+      )
+      .limit(1);
+
+    if ((orderRows as unknown[]).length === 0) {
+      return res.status(403).json({ error: "Order not found or does not belong to you" });
+    }
+
     await db
       .delete(push_subscriptions)
       .where(

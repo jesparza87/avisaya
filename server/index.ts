@@ -14,7 +14,10 @@ import jwt from "jsonwebtoken";
 
 dotenv.config();
 
-// Validate VAPID env vars at startup — fail fast rather than silently misconfigure
+// Validate VAPID env vars at startup — fail fast rather than silently misconfigure.
+// In the test environment this module is replaced by __mocks__/webpush.ts via
+// Jest moduleNameMapper, so the real initVapid (which requires env vars) is never
+// called during tests.
 try {
   initVapid();
 } catch (err) {

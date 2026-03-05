@@ -13,5 +13,5 @@
     "noUnusedParameters": true
   },
   "include": ["server", "shared"],
-  "exclude": ["node_modules", "dist", "client"]
+  "exclude": ["node_modules", "dist", "client", "server/__tests__", "server/__mocks__"]
 }
