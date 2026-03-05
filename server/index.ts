@@ -10,6 +10,7 @@ import ordersRoutes from "./routes/orders";
 import pushRoutes from "./routes/push";
 import { initVapid } from "./lib/webpush";
 import { setIo } from "./lib/socket";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 
@@ -41,9 +42,23 @@ setIo(io);
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
 
-  socket.on("join:venue", (venueOrToken: string) => {
-    socket.join(venueOrToken);
-    console.log(`Socket ${socket.id} joined room: ${venueOrToken}`);
+  // join:venue: bar dashboard only — requires valid JWT
+  socket.on("join:venue", (venueId: string) => {
+    const token =
+      (socket.handshake.auth as Record<string, string>)?.token ||
+      socket.handshake.headers.cookie?.match(/token=([^;]+)/)?.[1];
+    try {
+      if (!token) throw new Error("No token");
+      jwt.verify(token, process.env.JWT_SECRET || "secret");
+      socket.join(venueId);
+    } catch {
+      socket.emit("error", { message: "Authentication required to join venue room" });
+    }
+  });
+
+  // join:order: customer-facing — no auth required
+  socket.on("join:order", (orderToken: string) => {
+    socket.join(orderToken);
   });
 
   socket.on("disconnect", () => {
