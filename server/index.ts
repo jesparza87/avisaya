@@ -8,6 +8,7 @@ import { Server } from "socket.io";
 import authRoutes from "./routes/auth";
 import ordersRoutes from "./routes/orders";
 import pushRoutes from "./routes/push";
+import analyticsRoutes from "./routes/analytics";
 import { initVapid } from "./lib/webpush";
 import { setIo } from "./lib/socket";
 import jwt from "jsonwebtoken";
@@ -99,6 +100,7 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/push", pushRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {
