@@ -26,6 +26,10 @@ router.post("/register", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "email, password and venueName are required" });
     }
 
+    if (password.length < 8) {
+      return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
+    }
+
     // Check if email already exists
     const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (existing.length > 0) {
