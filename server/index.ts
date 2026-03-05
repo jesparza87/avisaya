@@ -1,12 +1,16 @@
+import http from "http";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 import dotenv from "dotenv";
+import { Server } from "socket.io";
 import authRoutes from "./routes/auth";
 import ordersRoutes from "./routes/orders";
 import pushRoutes from "./routes/push";
 import { initVapid } from "./lib/webpush";
+import { setIo } from "./lib/socket";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
 
@@ -19,12 +23,53 @@ try {
 }
 
 const app = express();
+const httpServer = http.createServer(app);
+
 const PORT = process.env.PORT || 5001;
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+
+// Socket.io
+const io = new Server(httpServer, {
+  cors: {
+    origin: CLIENT_URL,
+    credentials: true,
+  },
+});
+
+// Store io instance for use in route handlers
+setIo(io);
+
+io.on("connection", (socket) => {
+  console.log("Socket connected:", socket.id);
+
+  // join:venue: bar dashboard only — requires valid JWT
+  socket.on("join:venue", (venueId: string) => {
+    const token =
+      (socket.handshake.auth as Record<string, string>)?.token ||
+      socket.handshake.headers.cookie?.match(/token=([^;]+)/)?.[1];
+    try {
+      if (!token) throw new Error("No token");
+      jwt.verify(token, process.env.JWT_SECRET || "secret");
+      socket.join(venueId);
+    } catch {
+      socket.emit("error", { message: "Authentication required to join venue room" });
+    }
+  });
+
+  // join:order: customer-facing — no auth required
+  socket.on("join:order", (orderToken: string) => {
+    socket.join(orderToken);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Socket disconnected:", socket.id);
+  });
+});
 
 // Middleware
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: CLIENT_URL,
     credentials: true,
   })
 );
@@ -45,7 +90,7 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🚀 AvisaYa server running on port ${PORT}`);
 });
 

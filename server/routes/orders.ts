@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "../db";
 import { orders } from "../schema";
-import { eq, and, desc, ne } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { verifyJWT, AuthRequest } from "../middleware/auth";
 import { Response } from "express";
+import { getIo } from "../lib/socket";
 
 const router = Router();
 
@@ -110,6 +111,21 @@ router.patch("/:id/ready", verifyJWT, async (req: AuthRequest, res: Response) =>
       return res.status(404).json({ error: "Order not found" });
     }
 
+    // Emit real-time event to the venue room and to the order's token room
+    const io = getIo();
+    io.to(venue_id.toString()).emit("order:updated", {
+      token: updated.token,
+      status: "ready",
+      label: updated.label,
+      id: updated.id,
+    });
+    io.to(updated.token).emit("order:updated", {
+      token: updated.token,
+      status: "ready",
+      label: updated.label,
+      id: updated.id,
+    });
+
     return res.json(updated);
   } catch (err) {
     console.error("Error marking order ready:", err);
@@ -136,6 +152,21 @@ router.patch("/:id/collected", verifyJWT, async (req: AuthRequest, res: Response
     if (!updated) {
       return res.status(404).json({ error: "Order not found" });
     }
+
+    // Emit real-time event to the venue room and to the order's token room
+    const io = getIo();
+    io.to(venue_id.toString()).emit("order:updated", {
+      token: updated.token,
+      status: "collected",
+      label: updated.label,
+      id: updated.id,
+    });
+    io.to(updated.token).emit("order:updated", {
+      token: updated.token,
+      status: "collected",
+      label: updated.label,
+      id: updated.id,
+    });
 
     return res.json(updated);
   } catch (err) {
