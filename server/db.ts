@@ -6,14 +6,27 @@ dotenv.config();
 // module-load time. The actual connection is only established the first time
 // `db` is used, which never happens in unit tests because the module is
 // replaced by server/__mocks__/db.ts via Jest moduleNameMapper.
+//
+// Type-only imports are erased at compile time and do not cause the real
+// modules to be loaded eagerly. The require() calls inside createDb() are
+// intentional: they keep the lazy-init pattern while avoiding top-level
+// side-effectful imports that would attempt a DB connection at module load.
 
-type DrizzleDb = ReturnType<typeof createDb>;
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import type * as schemaTypes from "./schema";
+
+type DrizzleDb = PostgresJsDatabase<typeof schemaTypes>;
 
 let _db: DrizzleDb | null = null;
 
 function createDb(): DrizzleDb {
-  // Use require() only inside this function to keep the lazy-init pattern
-  // while avoiding top-level require() mixed with ES imports elsewhere.
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL environment variable is required");
+  }
+
+  // require() is used here deliberately to defer module loading until the
+  // first actual DB access. eslint-disable comments are intentional.
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { drizzle } = require("drizzle-orm/postgres-js") as typeof import("drizzle-orm/postgres-js");
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -21,13 +34,8 @@ function createDb(): DrizzleDb {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const schema = require("./schema") as typeof import("./schema");
 
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error("DATABASE_URL environment variable is required");
-  }
-
   const client = postgres(connectionString);
-  return drizzle(client, { schema });
+  return drizzle(client, { schema }) as DrizzleDb;
 }
 
 function getDb(): DrizzleDb {

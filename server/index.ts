@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import dotenv from "dotenv";
 import { Server } from "socket.io";
+import { parse as parseCookies } from "cookie";
 import authRoutes from "./routes/auth";
 import ordersRoutes from "./routes/orders";
 import pushRoutes from "./routes/push";
@@ -62,9 +63,20 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const token =
-      (socket.handshake.auth as Record<string, string>)?.token ||
-      socket.handshake.headers.cookie?.match(/token=([^;]+)/)?.[1];
+    // Prefer token from socket handshake auth object.
+    // Fall back to the cookie header, parsed properly via the `cookie` package
+    // to correctly handle URL-encoded values and multiple cookies — avoids the
+    // fragility of a hand-rolled regex.
+    let token: string | undefined =
+      (socket.handshake.auth as Record<string, string>)?.token;
+
+    if (!token) {
+      const rawCookie = socket.handshake.headers.cookie;
+      if (rawCookie) {
+        const parsed = parseCookies(rawCookie);
+        token = parsed["token"];
+      }
+    }
 
     try {
       if (!token) throw new Error("No token");
