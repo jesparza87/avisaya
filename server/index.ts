@@ -10,16 +10,22 @@ import authRoutes from "./routes/auth";
 import ordersRoutes from "./routes/orders";
 import pushRoutes from "./routes/push";
 import analyticsRoutes from "./routes/analytics";
+import billingRouter from "./routes/billing";
 import { initVapid } from "./lib/webpush";
 import { setIo } from "./lib/socket";
 import jwt from "jsonwebtoken";
 
 dotenv.config();
 
-// Validate VAPID env vars at startup.
-// In production, missing VAPID config is fatal — fail fast.
-// In development/test, emit a warning and continue so the server can still
-// start without push-notification support configured.
+if (!process.env.STRIPE_SECRET_KEY) {
+  if (process.env.NODE_ENV === "production") {
+    console.error("FATAL: STRIPE_SECRET_KEY is not set");
+    process.exit(1);
+  } else {
+    console.warn("WARNING: STRIPE_SECRET_KEY is not set — billing endpoints will not work.");
+  }
+}
+
 const isProduction = process.env.NODE_ENV === "production";
 try {
   initVapid();
@@ -41,7 +47,6 @@ const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 5001;
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
-// Socket.io
 const io = new Server(httpServer, {
   cors: {
     origin: CLIENT_URL,
@@ -49,13 +54,11 @@ const io = new Server(httpServer, {
   },
 });
 
-// Store io instance for use in route handlers
 setIo(io);
 
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
 
-  // join:venue: bar dashboard only — requires valid JWT
   socket.on("join:venue", (venueId: string) => {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
@@ -63,10 +66,6 @@ io.on("connection", (socket) => {
       return;
     }
 
-    // Prefer token from socket handshake auth object.
-    // Fall back to the cookie header, parsed properly via the `cookie` package
-    // to correctly handle URL-encoded values and multiple cookies — avoids the
-    // fragility of a hand-rolled regex.
     let token: string | undefined =
       (socket.handshake.auth as Record<string, string>)?.token;
 
@@ -87,7 +86,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // join:order: customer-facing — no auth required
   socket.on("join:order", (orderToken: string) => {
     socket.join(orderToken);
   });
@@ -97,23 +95,25 @@ io.on("connection", (socket) => {
   });
 });
 
-// Middleware
 app.use(
   cors({
     origin: CLIENT_URL,
     credentials: true,
   })
 );
+
+// Mount webhook with raw body BEFORE express.json() so Buffer is available for signature verification
+app.use("/api/billing/webhook", express.raw({ type: "application/json" }));
+
 app.use(express.json());
 app.use(cookieParser());
 
-// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/push", pushRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/billing", billingRouter);
 
-// Serve static files in production
 if (process.env.NODE_ENV === "production") {
   const clientDist = path.join(__dirname, "../client/dist");
   app.use(express.static(clientDist));
