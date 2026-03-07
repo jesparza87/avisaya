@@ -1,17 +1,18 @@
-# AvisaYa
+# AvisaYa — Stripe Billing
 
-**AvisaYa** — Pager digital para hostelería. QR + push notification, sin app.
+See main project README for full documentation.
 
-## Stack
+## Billing endpoints
 
-- **Backend**: Node.js + Express + TypeScript + PostgreSQL + Drizzle ORM
-- **Frontend**: React 18 + Vite + TypeScript + Tailwind CSS
-- **Auth**: JWT con httpOnly cookies
+- `POST /api/billing/create-checkout` — create Stripe Checkout session (requires JWT)
+- `POST /api/billing/create-portal` — create Stripe billing portal session (requires JWT)
+- `POST /api/billing/webhook` — Stripe webhook receiver
 
-## Requisitos
+## Required env vars
 
-- Node.js 20+
-- PostgreSQL 14+
-
-## Instalación
-
+```
+STRIPE_SECRET_KEY=sk_...
+STRIPE_PRICE_STARTER=price_...
+STRIPE_PRICE_PRO=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
