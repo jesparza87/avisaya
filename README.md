@@ -1,17 +1,28 @@
-# AvisaYa
+# AvisaYa — Stripe Billing
 
-**AvisaYa** — Pager digital para hostelería. QR + push notification, sin app.
+Adds Stripe billing (checkout, webhook, customer portal) to the existing AvisaYa repo.
 
-## Stack
+## Changes
 
-- **Backend**: Node.js + Express + TypeScript + PostgreSQL + Drizzle ORM
-- **Frontend**: React 18 + Vite + TypeScript + Tailwind CSS
-- **Auth**: JWT con httpOnly cookies
+| File | Change |
+|---|---|
+| `package.json` | Added `stripe ^14.0.0` dependency |
+| `server/routes/billing.ts` | New Express router: `/create-checkout`, `/webhook`, `/portal` |
+| `server/index.ts` | Mounted billing router at `/api/billing` |
 
-## Requisitos
+## New env vars required
 
-- Node.js 20+
-- PostgreSQL 14+
+```
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_STARTER_PRICE_ID=price_...
+STRIPE_PRO_PRICE_ID=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
 
-## Instalación
+## Endpoints
 
+- `POST /api/billing/create-checkout` — body `{ plan: 'starter' | 'pro' }` → `{ url }`
+- `POST /api/billing/webhook` — Stripe webhook (raw body, `stripe-signature` header)
+- `GET /api/billing/portal` → `{ url }`
+
+All endpoints except `/webhook` require a valid JWT cookie.
