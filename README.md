@@ -1,17 +1,8 @@
-# AvisaYa
+# avisaya
 
-**AvisaYa** — Pager digital para hostelería. QR + push notification, sin app.
+Existing project — see repo for full documentation.
 
-## Stack
+## Changes in this PR
 
-- **Backend**: Node.js + Express + TypeScript + PostgreSQL + Drizzle ORM
-- **Frontend**: React 18 + Vite + TypeScript + Tailwind CSS
-- **Auth**: JWT con httpOnly cookies
-
-## Requisitos
-
-- Node.js 20+
-- PostgreSQL 14+
-
-## Instalación
-
+- `server/index.ts`: mounts `/api/billing/webhook` with `express.raw()` **before** `express.json()` so Stripe signature verification receives the raw Buffer; adds fast-fail warning when `STRIPE_SECRET_KEY` is missing; imports and mounts `billingRouter`.
+- `server/routes.ts`: imports `billingRouter` from `./routes/billing` and mounts it at `/api/billing`, satisfying the router-mount coherence requirement.
