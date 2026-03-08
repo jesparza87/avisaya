@@ -28,10 +28,7 @@ router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => 
       .select()
       .from(orders)
       .where(
-        and(
-          eq(orders.id, orderId),
-          eq(orders.user_id, req.user!.id)
-        )
+        eq(orders.id, orderId)
       )
       .limit(1);
 
@@ -103,10 +100,7 @@ router.delete("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) =
       .select()
       .from(orders)
       .where(
-        and(
-          eq(orders.id, orderId),
-          eq(orders.user_id, req.user!.id)
-        )
+        eq(orders.id, orderId)
       )
       .limit(1);
 
