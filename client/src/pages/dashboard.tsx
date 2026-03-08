@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "wouter";
 import QRCode from "qrcode";
 import { apiRequest } from "@/lib/api";
 import {
@@ -32,7 +32,7 @@ interface User {
 }
 
 export default function Dashboard() {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const queryClient = useQueryClient();
 
   const [label, setLabel] = useState("");
