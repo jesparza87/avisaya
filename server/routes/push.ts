@@ -7,10 +7,6 @@ import { verifyJWT, AuthRequest } from "../middleware/auth";
 const router = Router();
 
 // POST /api/push/subscribe
-// Requires authentication — only the authenticated user can subscribe their own orderId.
-// The orderId is verified to belong to the authenticated user so that a malicious
-// caller who knows or guesses an orderId cannot register to receive another
-// customer's push notifications.
 router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => {
   const { subscription, orderId } = req.body;
 
@@ -23,20 +19,16 @@ router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => 
   }
 
   try {
-    // Verify the order exists and belongs to the authenticated user
     const orderRows = await db
       .select()
       .from(orders)
-      .where(
-        eq(orders.id, orderId)
-      )
+      .where(eq(orders.id, orderId))
       .limit(1);
 
-    if ((orderRows as unknown[]).length === 0) {
-      return res.status(403).json({ error: "Order not found or does not belong to you" });
+    if (orderRows.length === 0) {
+      return res.status(404).json({ error: "Order not found" });
     }
 
-    // Upsert: if the same endpoint+orderId already exists, update keys; otherwise insert
     const existing = await db
       .select()
       .from(push_subscriptions)
@@ -48,14 +40,12 @@ router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => 
       )
       .limit(1);
 
-    if ((existing as unknown[]).length > 0) {
-      // Update existing subscription keys to avoid duplicates
+    if (existing.length > 0) {
       await db
         .update(push_subscriptions)
         .set({
           p256dh: subscription.keys.p256dh,
-          auth: subscription.keys.auth,
-          updated_at: new Date(),
+          auth_key: subscription.keys.auth,
         })
         .where(
           and(
@@ -64,15 +54,11 @@ router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => 
           )
         );
     } else {
-      // Insert new subscription
       await db.insert(push_subscriptions).values({
         endpoint: subscription.endpoint,
         p256dh: subscription.keys.p256dh,
-        auth: subscription.keys.auth,
+        auth_key: subscription.keys.auth,
         order_id: orderId,
-        user_id: req.user!.id,
-        created_at: new Date(),
-        updated_at: new Date(),
       });
     }
 
@@ -84,9 +70,6 @@ router.post("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => 
 });
 
 // DELETE /api/push/subscribe
-// Requires authentication.
-// Only deletes the subscription when the endpoint+orderId combination belongs to
-// the authenticated user, preventing one user from unsubscribing another's device.
 router.delete("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) => {
   const { endpoint, orderId } = req.body;
 
@@ -95,17 +78,14 @@ router.delete("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) =
   }
 
   try {
-    // Verify the order belongs to the authenticated user before deleting
     const orderRows = await db
       .select()
       .from(orders)
-      .where(
-        eq(orders.id, orderId)
-      )
+      .where(eq(orders.id, orderId))
       .limit(1);
 
-    if ((orderRows as unknown[]).length === 0) {
-      return res.status(403).json({ error: "Order not found or does not belong to you" });
+    if (orderRows.length === 0) {
+      return res.status(404).json({ error: "Order not found" });
     }
 
     await db
@@ -113,8 +93,7 @@ router.delete("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) =
       .where(
         and(
           eq(push_subscriptions.endpoint, endpoint),
-          eq(push_subscriptions.order_id, orderId),
-          eq(push_subscriptions.user_id, req.user!.id)
+          eq(push_subscriptions.order_id, orderId)
         )
       );
 
@@ -126,3 +105,4 @@ router.delete("/subscribe", verifyJWT, async (req: AuthRequest, res: Response) =
 });
 
 export default router;
+
