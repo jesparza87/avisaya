@@ -4,7 +4,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+# Forzar NODE_ENV=development para incluir devDeps (TypeScript, etc.)
+RUN NODE_ENV=development npm install
 
 COPY . .
 
@@ -18,7 +19,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+# npm install en lugar de npm ci (no requiere package-lock.json)
+RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
 
@@ -27,3 +29,4 @@ EXPOSE 5000
 ENV PORT=5000
 
 CMD ["node", "dist/server/index.js"]
+
