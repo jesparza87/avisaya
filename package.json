@@ -1,7 +1,7 @@
 {
   "name": "avisaya",
   "version": "1.0.0",
-  "description": "AvisaYa — Pager digital para hostelería. QR + push notification, sin app.",
+  "description": "AvisaYa \u2014 Pager digital para hosteler\u00eda. QR + push notification, sin app.",
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
@@ -28,7 +28,8 @@
     "@tanstack/react-query": "^5.40.0",
     "socket.io": "^4.7.5",
     "web-push": "^3.6.7",
-    "wouter": "^3.3.0"
+    "wouter": "^3.3.0",
+    "stripe": "^17.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
